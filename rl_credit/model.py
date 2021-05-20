@@ -109,7 +109,7 @@ class ACModel(nn.Module, RecurrentACModel):
         return self.image_embedding_size
 
     def forward(self, obs, memory):
-        x = obs.image.transpose(1, 3).transpose(2, 3)
+        x = obs.image.permute(0, 3, 1, 2)
         x = self.image_conv(x)
         x = x.reshape(x.shape[0], -1)
         image_embedding = x
@@ -179,7 +179,7 @@ class ACModelVanilla(nn.Module, BaseModel):
         self.apply(init_params)
 
     def forward(self, obs):
-        x = obs.image.transpose(1, 3).transpose(2, 3)
+        x = obs.image.permute(0, 3, 1, 2)
         x = self.image_conv(x)
         x = x.reshape(x.shape[0], -1)
 
@@ -223,7 +223,7 @@ class ACModelReturnHCA(ACModelVanilla):
         self.apply(init_params)
 
     def forward(self, obs, z=None):
-        x = obs.image.transpose(1, 3).transpose(2, 3)
+        x = obs.image.permute(0, 3, 1, 2)
         x = self.image_conv(x)
         x = x.reshape(x.shape[0], -1)
 
@@ -278,9 +278,9 @@ class ACModelStateHCA(ACModelVanilla):
         if obs.image.ndim == 3:
             # a singleton image.  Need to unsqueeze since expecting first dim
             # to correspond to batch size.
-            x1 = obs.image.unsqueeze(0).transpose(1, 3).transpose(2, 3)
+            x1 = obs.image.unsqueeze(0).permute(0, 3, 1, 2)
         else:
-            x1 = obs.image.transpose(1, 3).transpose(2, 3)
+            x1 = obs.image.permute(0, 3, 1, 2)
         x1 = self.image_conv(x1)
         x1 = x1.reshape(x1.shape[0], -1)
 
@@ -295,9 +295,9 @@ class ACModelStateHCA(ACModelVanilla):
 
         if obs2 is not None:
             if obs2.image.ndim == 3:
-                x2 = obs2.image.unsqueeze(0).transpose(1, 3).transpose(2, 3)
+                x2 = obs2.image.unsqueeze(0).permute(0, 3, 1, 2)
             else:
-                x2 = obs2.image.transpose(1, 3).transpose(2, 3)
+                x2 = obs2.image.permute(0, 3, 1, 2)
             x2 = self.image_conv(x2)
             x2 = x2.reshape(x2.shape[0], -1)
 
@@ -397,7 +397,7 @@ class ACAttention(nn.Module, BaseModel):
         elif ep_len > 1:
             obs = obs.reshape(batch_size * ep_len, h, w, c)
 
-        x = obs.transpose(1, 3).transpose(2, 3)
+        x = obs.permute(0, 3, 1, 2)
         x = self.image_conv(x)
         x = x.reshape(x.shape[0], -1)
 
@@ -531,7 +531,7 @@ class AttentionQ(nn.Module, BaseModel):
         elif ep_len > 1:
             obs = obs.reshape(batch_size * ep_len, h, w, c)
 
-        x = obs.transpose(1, 3).transpose(2, 3)
+        x = obs.permute(0, 3, 1, 2)
         x = self.image_conv(x)
         x = x.reshape(x.shape[0], -1)
 

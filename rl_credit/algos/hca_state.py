@@ -26,48 +26,49 @@ class HCAState(BaseAlgo):
         traj_len = len(exps.reward)
         n_actions = self.env.action_space.n
 
-        k = 0  # pointer starts at beginning of episode
         policy_loss = 0
         hca_loss = 0
         reward_loss = 0
 
-        while k < traj_len - 1:
+        discount_factor = torch.tensor([self.discount]).pow(torch.arange(1, traj_len))
+
+        for k in range(traj_len - 1):
             with torch.no_grad():
                 # for t in range(k + 1, traj_len):
                 #     _, _, hca_logits = self.acmodel(exps.obs[k], exps.obs[t])
                 #     hca_prob = F.softmax(hca_logits, dim=1)
                 #     hca_factor = hca_prob * exps.reward[t]  # todo: include discount factor
 
-                # vectorized version of the above
-                pi_dist, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
-                hca_prob = F.softmax(hca_logits, dim=1)
-                discount_factor = torch.tensor([self.discount]).pow(torch.arange(k+1,traj_len))
-
-                # Replace reward in last time step with its Value estimate
-                bootstrapped_rewards = torch.cat([exps.reward[k+1:traj_len-1],
-                                                  exps.value[-1].view(1)])
-                hca_factor = discount_factor.unsqueeze(1) \
-                             * bootstrapped_rewards.unsqueeze(1) \
-                             * hca_prob / pi_dist.probs
-                # hca_factor is size (traj_len - k + 1) x num_actions
+                Z_ha = torch.zeros(traj_len - k - 1, n_actions).to(self.acmodel.device)
 
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
                     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
                     _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    hca_factor[:, a] += est_reward.item() * self.discount**k
+                    Z_ha[a] = est_reward.item()
+
+                # vectorized version of the above
+                pi_dist, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
+                hca_prob = F.softmax(hca_logits, dim=1)
+
+                # hca_prob is size (traj_len - k - 1) x num_actions
+
+                # Replace reward in last time step with its Value estimate
+                bootstrapped_rewards = torch.cat([exps.reward[k+1:traj_len-1],
+                                                  exps.value[-1].view(1)])
+                Z_ha += torch.sum(discount_factor[:traj_len-1-k].unsqueeze(1) \
+                             * bootstrapped_rewards.unsqueeze(1) \
+                             * hca_prob / pi_dist.probs, dim=0)
 
             # Policy loss
 
             pi_dist, _ = self.acmodel(exps.obs[k])
             # sum over all actions (dim=1) and all time step pairs (dim=0)
-            policy_loss += (pi_dist.probs * hca_factor).sum()
+            policy_loss += torch.dot(pi_dist.probs, Z_ha)
 
             # State HCA cross entropy loss
             _, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
             hca_loss += F.cross_entropy(hca_logits, exps.action[k+1:traj_len].long(), reduction='mean')
-
-            k += 1
 
         # Estimated reward loss
         ohe_action = F.one_hot(exps.action.long(), n_actions).float()
@@ -101,7 +102,7 @@ class HCAState(BaseAlgo):
         # TODO: take this out? original HCA algo doesn't include entropy
         entropy = dist.entropy().mean()
 
-        value_loss = (value - exps.returnn).pow(2).mean()
+        value_loss = (value - exps.returnn).square().mean()
 
         # TODO: use a separate hca_loss_coef for hca and reward losses
         loss = update_policy_loss - self.entropy_coef * entropy \
@@ -122,7 +123,7 @@ class HCAState(BaseAlgo):
         logs = {
             "entropy": entropy.item(),
             "value": value.mean().item(),
-            "policy_loss": policy_loss.item(),
+            "policy_loss": update_policy_loss.item(),
             "value_loss": value_loss.item(),
             "grad_norm": update_grad_norm,
             #"hca_loss": hca_loss.item()

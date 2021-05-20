@@ -93,12 +93,15 @@ class AttentionAlgo(BaseAlgo):
             self.log_episode_reshaped_return += self.rewards[i]
             self.log_episode_num_frames += torch.ones(self.num_procs, device=self.device)
 
-            for i, done_ in enumerate(done):
+            for j, done_ in enumerate(done):
                 if done_:
                     self.log_done_counter += 1
-                    self.log_return.append(self.log_episode_return[i].item())
-                    self.log_reshaped_return.append(self.log_episode_reshaped_return[i].item())
-                    self.log_num_frames.append(self.log_episode_num_frames[i].item())
+                    self.log_return.append(self.log_episode_return[j].item())
+                    self.log_reshaped_return.append(self.log_episode_reshaped_return[j].item())
+                    self.log_num_frames.append(self.log_episode_num_frames[j].item())
+
+                    # log final reward
+                    self.log_last_reward.append(self.rewards[i, j].item())
 
             self.log_episode_return *= self.mask
             self.log_episode_reshaped_return *= self.mask
