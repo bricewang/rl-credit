@@ -57,7 +57,7 @@ class HCAState(BaseAlgo):
 
             pi_dist, _ = self.acmodel(exps.obs[k])
             # sum over all actions (dim=1) and all time step pairs (dim=0)
-            policy_loss += torch.dot(pi_dist.probs, Z_ha)
+            policy_loss += torch.dot(pi_dist.probs.squeeze(), Z_ha)
 
             # State HCA cross entropy loss
             _, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
