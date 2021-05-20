@@ -34,19 +34,6 @@ class HCAState(BaseAlgo):
 
         for k in range(traj_len - 1):
             with torch.no_grad():
-                # for t in range(k + 1, traj_len):
-                #     _, _, hca_logits = self.acmodel(exps.obs[k], exps.obs[t])
-                #     hca_prob = F.softmax(hca_logits, dim=1)
-                #     hca_factor = hca_prob * exps.reward[t]  # todo: include discount factor
-
-                Z_ha = torch.zeros(traj_len - k - 1, n_actions).to(self.acmodel.device)
-
-                # estimated immediate reward for all actions
-                for a in range(n_actions):
-                    ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
-                    _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    Z_ha[a] = est_reward.item()
-
                 # vectorized version of the above
                 pi_dist, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
                 hca_prob = F.softmax(hca_logits, dim=1)
@@ -56,9 +43,15 @@ class HCAState(BaseAlgo):
                 # Replace reward in last time step with its Value estimate
                 bootstrapped_rewards = torch.cat([exps.reward[k+1:traj_len-1],
                                                   exps.value[-1].view(1)])
-                Z_ha += torch.sum(discount_factor[:traj_len-1-k].unsqueeze(1) \
+                Z_ha = torch.sum(discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
                              * hca_prob / pi_dist.probs, dim=0)
+
+                # estimated immediate reward for all actions
+                for a in range(n_actions):
+                    ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
+                    _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
+                    Z_ha[a] += est_reward.item()
 
             # Policy loss
 
