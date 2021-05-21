@@ -36,7 +36,8 @@ class HCAState(BaseAlgo):
             with torch.no_grad():
                 # vectorized version of the above
                 pi_dist, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
-                hca_prob = F.softmax(hca_logits, dim=1)
+                # hca_prob = F.softmax(hca_logits, dim=1)
+                hca_prob = pi_dist.probs.copy()
 
                 # hca_prob is size (traj_len - k - 1) x num_actions
 
@@ -45,8 +46,7 @@ class HCAState(BaseAlgo):
                                                   exps.value[-1].view(1)])
                 Z_ha = discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
-                             # * hca_prob / pi_dist.probs
-                             * torch.ones_like(hca_prob)
+                             * hca_prob / pi_dist.probs
                 print(Z_ha.shape)
                 Z_a = torch.sum(Z_ha, dim=0)
                 print(Z_a.shape)
@@ -55,13 +55,13 @@ class HCAState(BaseAlgo):
                 for a in range(n_actions):
                     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
                     _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    Z_ha[a] += est_reward.item()
+                    Z_a[a] += est_reward.item()
 
             # Policy loss
 
             pi_dist, _ = self.acmodel(exps.obs[k])
             # sum over all actions (dim=1) and all time step pairs (dim=0)
-            policy_loss += torch.dot(pi_dist.probs.squeeze(), Z_ha)
+            policy_loss += torch.dot(pi_dist.probs.squeeze(), Z_a)
 
             # State HCA cross entropy loss
             _, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
