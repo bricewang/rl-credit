@@ -8,7 +8,7 @@ from rl_credit.algos.base import BaseAlgo
 class HCAState(BaseAlgo):
     """The state HCA Actor-Critic algorithm."""
 
-    def __init__(self, envs, acmodel, device=None, num_frames_per_proc=None, discount=0.99, lr=0.01, gae_lambda=0.95,
+    def __init__(self, envs, acmodel, device=None, num_frames_per_proc=None, discount=0.99, lr=0.001, gae_lambda=0.95,
                  entropy_coef=0.01, value_loss_coef=0.5, max_grad_norm=0.5, recurrence=1,
                  rmsprop_alpha=0.99, rmsprop_eps=1e-8, preprocess_obss=None, reshape_reward=None):
 
@@ -68,7 +68,8 @@ class HCAState(BaseAlgo):
         _, _, est_reward = self.acmodel(exps.obs, action=ohe_action)
         reward_loss = F.mse_loss(est_reward.squeeze(), exps.reward, reduction='mean')
 
-        return policy_loss, hca_loss, reward_loss
+        # return policy_loss, hca_loss, reward_loss
+        return policy_loss, 0, 0
 
     def update_parameters(self, exps):
         exps.mask = self.masks.transpose(0, 1).reshape(-1).unsqueeze(1)
@@ -107,7 +108,7 @@ class HCAState(BaseAlgo):
 
         self.optimizer.zero_grad()
         loss.backward()
-        update_grad_norm = sum(p.grad.data.norm(2) ** 2 for p in self.acmodel.parameters()) ** 0.5
+        update_grad_norm = sum(p.grad.data.norm(2) ** 2 for p in self.acmodel.parameters() if p.grad is not None) ** 0.5
         torch.nn.utils.clip_grad_norm_(self.acmodel.parameters(), self.max_grad_norm)
         self.optimizer.step()
 
