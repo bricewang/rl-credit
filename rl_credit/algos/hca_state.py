@@ -49,7 +49,7 @@ class HCAState(BaseAlgo):
                              * hca_prob / pi_dist.probs
                 print(Z_ha.shape)
                 Z_a = torch.sum(Z_ha, dim=0)
-                print(Z_a.shape)
+                raise Exception(f'hi {Z_a.shape}')
 
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
