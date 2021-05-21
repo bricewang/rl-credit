@@ -43,10 +43,13 @@ class HCAState(BaseAlgo):
                 # Replace reward in last time step with its Value estimate
                 bootstrapped_rewards = torch.cat([exps.reward[k+1:traj_len-1],
                                                   exps.value[-1].view(1)])
-                Z_ha = torch.sum(discount_factor[:traj_len-1-k].unsqueeze(1) \
+                Z_ha = discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
-                             # * hca_prob / pi_dist.probs, dim=0)
-                             * torch.ones_like(hca_prob), dim=0)
+                             # * hca_prob / pi_dist.probs
+                             * torch.ones_like(hca_prob)
+                print(Z_ha.shape)
+                Z_a = torch.sum(Z_ha, dim=0)
+                print(Z_a.shape)
 
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
