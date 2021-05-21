@@ -50,8 +50,8 @@ class HCAState(BaseAlgo):
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
                     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
-                    _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    Z_ha[a] += est_reward.item()
+                    pi_dist, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
+                    Z_ha[a] += est_reward.item() * pi_dist.probs.squeeze()[a]
 
             # Policy loss
 
@@ -68,7 +68,8 @@ class HCAState(BaseAlgo):
         _, _, est_reward = self.acmodel(exps.obs, action=ohe_action)
         reward_loss = F.mse_loss(est_reward.squeeze(), exps.reward, reduction='mean')
 
-        return policy_loss, hca_loss, reward_loss
+        # flip policy loss sign for gradient ascent
+        return -policy_loss, hca_loss, reward_loss
 
     def update_parameters(self, exps):
         exps.mask = self.masks.transpose(0, 1).reshape(-1).unsqueeze(1)
@@ -87,18 +88,18 @@ class HCAState(BaseAlgo):
             update_policy_loss += policy_loss
             update_hca_loss += hca_loss
             update_reward_loss += reward_loss
-        # Compute mean policy loss over all rollouts.  Change sign for update.
-        update_policy_loss /= -1 * len(start_indices)
+        
+        update_policy_loss /= len(start_indices)
 
         dist, value = self.acmodel(exps.obs)
 
         # TODO: take this out? original HCA algo doesn't include entropy
-        entropy = dist.entropy().mean()
+        # entropy = dist.entropy().mean()
 
         value_loss = (value - exps.returnn).square().mean()
 
         # TODO: use a separate hca_loss_coef for hca and reward losses
-        loss = update_policy_loss - self.entropy_coef * entropy \
+        loss = update_policy_loss \
                + self.value_loss_coef * value_loss \
                + self.value_loss_coef * update_hca_loss \
                + self.value_loss_coef * update_reward_loss
