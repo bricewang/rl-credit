@@ -45,14 +45,15 @@ class HCAState(BaseAlgo):
                                                   exps.value[-1].view(1)])
                 Z_ha = discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
-                             * hca_prob / pi_dist.probs
+                             # * hca_prob / pi_dist.probs
+                             * torch.ones_like(hca_prob)
                 Z_ha = torch.sum(Z_ha, dim=0)
 
                 # estimated immediate reward for all actions
-                # for a in range(n_actions):
-                #     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
-                #     _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                #     Z_ha[a] += est_reward.item()
+                for a in range(n_actions):
+                    ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
+                    _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
+                    Z_ha[a] += est_reward.item()
 
             # Policy loss
 
