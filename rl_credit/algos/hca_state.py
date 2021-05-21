@@ -45,7 +45,8 @@ class HCAState(BaseAlgo):
                                                   exps.value[-1].view(1)])
                 Z_ha = torch.sum(discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
-                             * hca_prob / pi_dist.probs, dim=0)
+                             # * hca_prob / pi_dist.probs, dim=0)
+                             , dim=0)
 
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
