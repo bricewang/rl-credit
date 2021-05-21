@@ -45,7 +45,6 @@ class HCAState(BaseAlgo):
                                                   exps.value[-1].view(1)])
                 Z_ha = discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
-                             # * hca_prob / pi_dist.probs
                              * torch.ones_like(hca_prob)
                 Z_ha = torch.sum(Z_ha, dim=0)
 
