@@ -191,7 +191,8 @@ class AttentionAlgo(BaseAlgo):
             "return_per_episode": self.log_return[-keep:],
             "reshaped_return_per_episode": self.log_reshaped_return[-keep:],
             "num_frames_per_episode": self.log_num_frames[-keep:],
-            "num_frames": self.num_frames
+            "num_frames": self.num_frames,
+            "last_reward_per_episode": self.log_last_reward[-keep:]
         }
 
         self.log_done_counter = 0
