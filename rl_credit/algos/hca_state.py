@@ -49,10 +49,10 @@ class HCAState(BaseAlgo):
                 Z_ha = torch.sum(Z_ha, dim=0)
 
                 # estimated immediate reward for all actions
-                for a in range(n_actions):
-                    ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
-                    _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    Z_ha[a] += est_reward.item()
+                # for a in range(n_actions):
+                #     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
+                #     _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
+                #     Z_ha[a] += est_reward.item()
 
             # Policy loss
 
