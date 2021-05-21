@@ -36,8 +36,7 @@ class HCAState(BaseAlgo):
             with torch.no_grad():
                 # vectorized version of the above
                 pi_dist, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
-                # hca_prob = F.softmax(hca_logits, dim=1)
-                hca_prob = pi_dist.probs.copy()
+                hca_prob = F.softmax(hca_logits, dim=1)
 
                 # hca_prob is size (traj_len - k - 1) x num_actions
 
@@ -47,21 +46,19 @@ class HCAState(BaseAlgo):
                 Z_ha = discount_factor[:traj_len-1-k].unsqueeze(1) \
                              * bootstrapped_rewards.unsqueeze(1) \
                              * hca_prob / pi_dist.probs
-                print(Z_ha.shape)
-                Z_a = torch.sum(Z_ha, dim=0)
-                raise Exception(f'hi {Z_a.shape}')
+                Z_ha = torch.sum(Z_ha, dim=0)
 
                 # estimated immediate reward for all actions
                 for a in range(n_actions):
                     ohe_action = F.one_hot(torch.as_tensor(a), n_actions).float()
                     _, _, est_reward = self.acmodel(exps.obs[k], action=ohe_action)
-                    Z_a[a] += est_reward.item()
+                    Z_ha[a] += est_reward.item()
 
             # Policy loss
 
             pi_dist, _ = self.acmodel(exps.obs[k])
             # sum over all actions (dim=1) and all time step pairs (dim=0)
-            policy_loss += torch.dot(pi_dist.probs.squeeze(), Z_a)
+            policy_loss += torch.dot(pi_dist.probs.squeeze(), Z_ha)
 
             # State HCA cross entropy loss
             _, _, hca_logits = self.acmodel(exps.obs[k], obs2=exps.obs[k+1:traj_len])
@@ -72,8 +69,7 @@ class HCAState(BaseAlgo):
         _, _, est_reward = self.acmodel(exps.obs, action=ohe_action)
         reward_loss = F.mse_loss(est_reward.squeeze(), exps.reward, reduction='mean')
 
-        # return policy_loss, hca_loss, reward_loss
-        return policy_loss, 0, 0
+        return policy_loss, hca_loss, reward_loss
 
     def update_parameters(self, exps):
         exps.mask = self.masks.transpose(0, 1).reshape(-1).unsqueeze(1)
@@ -90,8 +86,8 @@ class HCAState(BaseAlgo):
         for k, t in zip(start_indices, end_indices):
             policy_loss, hca_loss, reward_loss = self._policy_loss_for_episode(exps[k:t+1])
             update_policy_loss += policy_loss
-            update_hca_loss += hca_loss
-            update_reward_loss += reward_loss
+            # update_hca_loss += hca_loss
+            # update_reward_loss += reward_loss
         # Compute mean policy loss over all rollouts.  Change sign for update.
         update_policy_loss /= -1 * len(start_indices)
 
