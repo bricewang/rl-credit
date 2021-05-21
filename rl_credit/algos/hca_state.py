@@ -94,7 +94,7 @@ class HCAState(BaseAlgo):
         dist, value = self.acmodel(exps.obs)
 
         # TODO: take this out? original HCA algo doesn't include entropy
-        # entropy = dist.entropy().mean()
+        entropy = dist.entropy().mean()
 
         value_loss = (value - exps.returnn).square().mean()
 
